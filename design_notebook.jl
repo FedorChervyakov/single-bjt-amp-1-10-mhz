@@ -5,7 +5,7 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 2e0e79c5-8da4-4a6b-ad30-52e7efc24adb
-using LinearAlgebra, Plots, PlutoUI, PlotlyBase, Measurements
+using LinearAlgebra, Plots, PlutoUI, Measurements
 
 # ╔═╡ 54492e34-bf48-11ec-1776-77fe4c10a02a
 md"""
@@ -119,13 +119,13 @@ RE = Re(Vcc/3, Vbe, Ie, 0)
 RC = Rc(Vcc, 2/3 * Vcc, Ie)
 
 # ╔═╡ 172b8aa1-9a40-4b99-a2c7-3fd4ecfdda1e
-Rbs = construct_voltage_divider(E6, Vb, Vcc)
+Rbs = construct_voltage_divider(E6*1e3, Vb, Vcc)
 
 # ╔═╡ cc6e5d48-79fd-46f2-bc37-9dc73c3a3e46
-Rb1, Rb2 = Rbs.R1, Rbs.R2
+Rb1, Rb2 = Rbs.R1, Rbs.R2 
 
 # ╔═╡ 3ae7f68d-cac9-49ee-b9fe-e333da5af78e
-ratio(Rbs) * Vcc, resistance(Rbs)
+_, Rb = ratio(Rbs) * Vcc, resistance(Rbs)
 
 # ╔═╡ 1147b10c-9e8d-4bb5-88d7-6f286ed10cc9
 md"""
@@ -150,7 +150,7 @@ Gdc = - RC / (re + RE)
 md"""
 ### AC Gain with Ce cap
 
-Using Extra-Element Theorem we can find an expression for the gain transfer function of the amplifier with a capacitor across RE.
+Using Extra-Element Theorem we can find an expression for the transfer function of the amplifier with a capacitor across RE.
 
 $G(s) = |G_{dc}| * \frac{1 + j\omega R_E C_E}{1 + \frac{R_E r_e}{R_E + r_e}j\omega C_E}$ 
 
@@ -210,23 +210,50 @@ begin
 
 	gain_c = abs.(Gc.(w))
 	db_gain_c = 20log10.(gain_c)
+	phase_c = angle.(Gc.(w))
 end;
 
 # ╔═╡ d8c71e4c-071f-484d-98fa-926053c86ea0
-plot(f, db_gain_c, xscale=:log10, ylabel="Gain dB", xlabel="Frequency (Hz)")
+begin
+	plot(f, [db_gain_c, rad2deg.(phase_c)], xscale=:log10, ylabel="Gain dB", xlabel="Frequency (Hz)")
+end
+
+# ╔═╡ 3cb1a299-ad31-4a8d-b90d-55a06b1e44d8
+md"""
+## AC Gain with input DC block cap
+
+Again using EET to find t.f
+"""
+
+# ╔═╡ 3266f6a3-2afb-41a1-970b-cbbb63faf50c
+Cin = 1;
+
+# ╔═╡ 0af04491-87be-4d39-8f43-2d06b81236df
+Gi(s) = Gc(s) / (1 + 1/(s*Rb*Cin) + (1-gm*re) / (s*Cin*re + s*Cin*RE / (1 + s*RE*Cin)))
+
+# ╔═╡ 4ea062a1-ed94-415e-b5f1-9844ff125314
+begin
+    gain_i = abs.(Gi.(w))
+	db_gain_i = 20log10.(gain_i)
+	phase_i = angle.(Gi.(w))
+end;
+
+# ╔═╡ ee84303a-f51c-489a-b033-5487aaf0ae5e
+begin
+	plt = plot(f, db_gain_i, xscale=:log10, ylabel="Gain dB", xlabel="Frequency (Hz)")
+	plot!(twinx(plt), f, phase_i .* 180 ./ π .- 180, xticks=:none, xscale=:log10, linecolor=:red, label="phase")
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-PlotlyBase = "a03496cd-edff-5a9b-9e67-9cda94a718b5"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 Measurements = "~2.7.1"
-PlotlyBase = "~0.8.18"
 Plots = "~1.27.5"
 PlutoUI = "~0.7.38"
 """
@@ -732,12 +759,6 @@ git-tree-sha1 = "b2a7af664e098055a7529ad1a900ded962bca488"
 uuid = "2f80f16e-611a-54ab-bc61-aa92de5b98fc"
 version = "8.44.0+0"
 
-[[deps.Parameters]]
-deps = ["OrderedCollections", "UnPack"]
-git-tree-sha1 = "34c0e9ad262e5f7fc75b10a9952ca7692cfc5fbe"
-uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
-version = "0.12.3"
-
 [[deps.Parsers]]
 deps = ["Dates"]
 git-tree-sha1 = "621f4f3b4977325b9128d5fae7a8b4829a0c2222"
@@ -765,12 +786,6 @@ deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Stat
 git-tree-sha1 = "bb16469fd5224100e422f0b027d26c5a25de1200"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 version = "1.2.0"
-
-[[deps.PlotlyBase]]
-deps = ["ColorSchemes", "Dates", "DelimitedFiles", "DocStringExtensions", "JSON", "LaTeXStrings", "Logging", "Parameters", "Pkg", "REPL", "Requires", "Statistics", "UUIDs"]
-git-tree-sha1 = "180d744848ba316a3d0fdf4dbd34b77c7242963a"
-uuid = "a03496cd-edff-5a9b-9e67-9cda94a718b5"
-version = "0.8.18"
 
 [[deps.Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
@@ -931,11 +946,6 @@ version = "1.3.0"
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
 uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
-
-[[deps.UnPack]]
-git-tree-sha1 = "387c1f73762231e86e0c9c5443ce3b4a0a9a0c2b"
-uuid = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
-version = "1.0.2"
 
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
@@ -1212,5 +1222,10 @@ version = "0.9.1+5"
 # ╟─be2e75aa-7c9f-45e9-a7bf-2c598d82b4d3
 # ╠═921294ec-e12d-4a98-b351-117156a9063d
 # ╠═d8c71e4c-071f-484d-98fa-926053c86ea0
+# ╟─3cb1a299-ad31-4a8d-b90d-55a06b1e44d8
+# ╠═3266f6a3-2afb-41a1-970b-cbbb63faf50c
+# ╠═0af04491-87be-4d39-8f43-2d06b81236df
+# ╠═4ea062a1-ed94-415e-b5f1-9844ff125314
+# ╠═ee84303a-f51c-489a-b033-5487aaf0ae5e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
